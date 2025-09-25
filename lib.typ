@@ -39,6 +39,8 @@
     #datetime.today().display("[year].[month].[day]")
   ])
 
+  outline(title: " 总览", depth: 2)
+
   body
 }
 
