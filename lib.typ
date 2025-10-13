@@ -34,6 +34,8 @@
   show heading.where(level: 1): it => text(size: 16pt, it)
   show heading.where(level: 2): it => text(size: 14pt, it)
 
+  set enum(numbering: "(1)")
+
 
   align(center, underline(stroke: red + 0.7pt, offset: 5pt, (
     underline(stroke: red + 0.7pt, offset: 3pt, text(size: 20pt, weight: 500, [
