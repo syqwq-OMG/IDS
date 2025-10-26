@@ -15,7 +15,7 @@
   ))
 
   set heading(numbering: "I.1")
-  set par(first-line-indent: 2em)
+  set par(first-line-indent: 0em)
   set page(numbering: "1", header: context {
     if here().page() == 1 { return none }
     align(center, box(image("src/ecnu-logo.svg"), height: 45%))
@@ -48,7 +48,7 @@
     #datetime.today().display("[year].[month].[day]")
   ])
 
-  outline(title: " 总览", depth: 2)
+  outline(title: " 总览", depth: 3)
 
   body
 }
