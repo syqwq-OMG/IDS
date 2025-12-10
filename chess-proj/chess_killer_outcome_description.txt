@@ -1,0 +1,88 @@
+这是一份关于国际象棋大数据分析输出文件的标准化文档。
+1. 文件路径与用途
+
+所有文件均生成在 outcome/chess_killer/ 目录下：
+
+    checkpoint_v2.json (注：在没有final_matrix.json的情况下，请使用这个。)
+
+        用途：断点续传存档。程序运行时实时更新，记录当前处理的字节位置和中间统计结果。
+
+        注意：程序中断后重新运行会自动读取此文件。
+
+    final_matrix.json
+
+        用途：最终分析结果。当所有对局处理完毕后生成的最终统计文件。
+
+2. 文件格式与读取方式
+
+    格式：标准 JSON 格式。
+
+    读取方式：使用 Python 的 json 库读取。
+
+code Python
+
+    
+import json
+with open("outcome/advanced_analysis/final_matrix.json", "r") as f:
+    data = json.load(f)
+    stats = data["stats"] # 获取核心统计数据
+
+  
+
+3. 数据结构详解 (Schema)
+
+JSON 顶层包含元数据（如 games_processed）和核心数据 stats。stats 包含两个核心字典：
+A. kill_matrix (3D 击杀矩阵)
+
+描述谁(Attacker) 在 第几回合 杀了 谁(Victim)。
+
+    结构：{ Attacker_ID: { Victim_ID: [Int_List] } }
+
+    Attacker_ID / Victim_ID：字符串，格式为 {Color}_{Role}_{Identity}{_promoted?}。
+
+        例：White_Pawn_a (白方a兵), Black_Queen (黑后), White_Pawn_e_promoted (白方升变后的e兵)。
+
+        特例：若王被将杀，Victim_ID 为 {Color}_King，视为被 Attacker 击杀。
+
+    [Int_List]：长度为 76 的整数数组。
+
+        索引含义：Index i 代表第 i+1 回合。
+
+        list[0] = 第1回合击杀数。
+
+        list[74] = 第75回合击杀数。
+
+        list[75] = 第76回合及以后的击杀总数。
+
+B. death_timeline (2D 死亡时间线)
+
+描述 谁(Victim) 在 第几回合 阵亡（或被将杀）。
+
+    结构：{ Victim_ID: [Int_List] }
+
+    Victim_ID：同上。
+
+    [Int_List]：同上（长度76，索引代表回合）。
+
+4. 数据字典示例
+code JSON
+
+    
+{
+    "games_processed": 10500,
+    "current_pgn_offset": 12345678,
+    "stats": {
+        "kill_matrix": {
+            "White_Queen": {
+                "Black_Pawn_e": [0, 0, 0, 5, 2, ..., 0] 
+                // 含义：白后在第4回合(index 3)杀了5个黑方e兵
+            }
+        },
+        "death_timeline": {
+            "Black_Pawn_e": [0, 10, 50, 20, ..., 0]
+            // 含义：黑方e兵在第2回合(index 1)共阵亡10次
+        }
+    }
+}
+
+  
