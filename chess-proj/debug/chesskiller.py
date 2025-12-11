@@ -7,7 +7,7 @@ from collections import defaultdict
 
 # ================= 配置区域 =================
 # PGN_FILE_PATH = "dataset/lichess_db_standard_rated_2025-11.pgn"
-PGN_FILE_PATH = "../dataset/experiment.pgn"
+PGN_FILE_PATH = "../dataset/catcatX.pgn"
 OUTCOME_DIR = "../outcome/chess_killer"
 CHECKPOINT_FILE = os.path.join(OUTCOME_DIR, "checkpoint_v3_test.json")
 FINAL_RESULT_FILE = os.path.join(OUTCOME_DIR, "final_matrix_py.json")

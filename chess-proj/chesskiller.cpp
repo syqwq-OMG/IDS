@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
 
 // ================= 配置区域 =================
 // const std::string PGN_FILE_PATH = "dataset/lichess_db_standard_rated_2025-11.pgn";
-const std::string PGN_FILE_PATH = "../dataset/experiment.pgn";
+const std::string PGN_FILE_PATH = "../dataset/catcatX.pgn";
 const std::string OUTCOME_DIR = "../outcome/chess_killer";
 const std::string CHECKPOINT_FILE = OUTCOME_DIR + "/checkpoint_cpp_test.json";
 const std::string FINAL_RESULT_FILE = OUTCOME_DIR + "/final_matrix_cpp.json";
@@ -303,49 +303,56 @@ private:
 
         // --- Step 2: 处理 Tracker 移动 ---
         
-        // 处理易位带来的车移动
+        // 1. 确定王最终落子的位置 (Fix Bug Here)
+        int final_king_sq_idx = to_sq.index();
+
         if (is_castling) {
-            bool kingSide = to_sq > from_sq;
+            bool kingSide = to_sq > from_sq; // 在该库中，H1 > E1 成立，逻辑通用
             chess::Color c = board.sideToMove();
+            
+            // 使用库提供的辅助函数计算王和车的实际落点
+            chess::Square actual_king_to = chess::Square::castling_king_square(kingSide, c);
+            chess::Square actual_rook_to = chess::Square::castling_rook_square(kingSide, c);
+            
+            // 获取车的来源位置（在该库中，move.to() 实际上指向车的来源位置，即 H1/A1）
+            // 但为了保险，还是重新计算标准车位
             chess::Rank rank = (c == chess::Color::WHITE) ? chess::Rank::RANK_1 : chess::Rank::RANK_8;
-            
             chess::Square rook_from = kingSide ? chess::Square(chess::File::FILE_H, rank) : chess::Square(chess::File::FILE_A, rank);
-            chess::Square rook_to = kingSide ? chess::Square(chess::File::FILE_F, rank) : chess::Square(chess::File::FILE_D, rank);
-            
+
+            // 更新车的位置
             if (tracker.board_map[rook_from.index()].active) {
                 TrackedPiece rook_data = tracker.board_map[rook_from.index()];
                 tracker.board_map[rook_from.index()] = {"", false, false};
-                tracker.board_map[rook_to.index()] = rook_data;
+                tracker.board_map[actual_rook_to.index()] = rook_data;
             }
+
+            // 修正王的落点索引
+            final_king_sq_idx = actual_king_to.index();
         }
 
-        // 移动主棋子 (Attacker)
+        // 2. 移动主棋子 (Attacker / King)
         tracker.board_map[from_sq.index()] = {"", false, false};
         
-        // 处理升变标记 (注意：Python是先移动后标记，这里我们修改数据后放入新位置)
+        // 处理升变标记
         if (is_promotion) {
             attacker_data.promoted = true;
         }
         
-        tracker.board_map[to_sq.index()] = attacker_data;
+        // 将 Attacker 放入修正后的位置
+        tracker.board_map[final_king_sq_idx] = attacker_data;
 
         // --- Step 3: 更新 Engine Board ---
         board.makeMove(move);
 
         // --- Step 4: 处理 Checkmate (将杀) ---
-        // 此时 board 已经是对手行棋方，检查对手是否被将杀
-        
-        // 快速判断：如果对手处于 Check 状态
         if (board.inCheck()) {
             chess::Movelist moves;
             chess::movegen::legalmoves(moves, board);
             
-            // 如果无路可走 => 将杀
             if (moves.empty()) {
-                // 此时位于 to_sq 的就是刚才移动的棋子 (Checkmate 发起者)
-                auto& final_attacker_data = tracker.board_map[to_sq.index()];
+                // 注意：这里也要用修正后的位置找凶手
+                auto& final_attacker_data = tracker.board_map[final_king_sq_idx];
                 
-                // 再次获取 ID，因为如果是刚升变的兵，ID 需要带 _promoted 后缀
                 std::string final_attacker_id = tracker.get_full_id(final_attacker_data);
                 if (final_attacker_id.empty()) final_attacker_id = "Unknown_Ghost";
 
