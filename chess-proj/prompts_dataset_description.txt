@@ -1,0 +1,139 @@
+这份文档详细描述了经过清洗和分桶处理后的 Lichess 国际象棋对局数据库结构。你可以直接将以下内容发送给任何 AI 助手或开发人员，他们将能够立即理解数据的组织方式并编写正确的代码来读取它。
+
+Lichess 对局数据库 (2025.11) 数据集说明文档
+1. 数据集概述
+
+本数据集源自 Lichess 2025年11月的全部标准记分对局（Standard Rated Games）。
+原始数据为一个约 200GB 的巨大 PGN 文件。
+为了便于高效分析，数据已按照 时间控制 (Time Control) 和 平均分数段 (Average Elo) 进行了清洗和拆分。
+
+2. 目录结构
+
+所有数据位于 dataset/ 目录下。
+
+原始文件:
+
+路径: dataset/lichess_db_standard_rated_2025-11.pgn
+
+大小: ~200GB
+
+注意: 不可一次性加载到内存，必须使用流式读取。
+
+处理后的分桶数据:
+
+根目录: dataset/2025-11/
+
+层级规则: [时间控制分类] / [Elo分段] / games.pgn
+
+结构示例:
+
+dataset/2025-11/
+├── Bullet/                  # 超快棋 (< 180s)
+│   ├── 1000-1199/
+│   │   └── games.pgn
+│   ├── 1200-1399/
+│   │   └── games.pgn
+│   └── ...
+├── Blitz/                   # 快棋 (180s <= T < 480s)
+│   ├── 1600-1799/
+│   │   └── games.pgn
+│   └── ...
+├── Rapid/                   # 快速 (480s <= T < 1500s)
+│   └── ...
+└── Classical/               # 慢棋 (>= 1500s)
+    └── ...
+3. 分类标准 (核心逻辑)
+
+在读取或分析数据时，请知悉以下分类逻辑，这解释了为什么某局游戏会出现在特定的文件夹中：
+
+Elo 分段 (Elo Binning):
+
+计算公式: AvgElo = (WhiteElo + BlackElo) / 2
+
+分桶策略: 向下取整到最近的 200 分（例如: 平均分 1580 -> 1400-1599）。
+
+时间控制分类 (Time Control):
+
+基于 Lichess 官方算法 (源自 lila/Speed.scala)。
+
+估算时长: EstimatedTime = InitialTime + 40 * Increment (单位: 秒)。
+
+阈值定义:
+
+Bullet: < 180s (3分钟)
+
+Blitz: < 480s (8分钟) (注意: 包含 3+0, 3+2, 5+0, 5+3)
+
+Rapid: < 1500s (25分钟) (注意: 包含 10+0, 10+5, 15+10)
+
+Classical: >= 1500s
+
+4. 单局游戏数据格式
+
+文件格式为标准的 PGN (Portable Game Notation)。
+每一局游戏 (chess.pgn.Game 对象) 包含以下关键信息：
+
+Headers (元数据):
+
+Event: 比赛类型 (e.g., "Rated Blitz game")
+
+Site: Lichess 链接
+
+WhiteElo, BlackElo: 玩家积分 (Glicko2)
+
+eco, Opening: 开局编号与名称
+
+TimeControl: 格式为 基础时间+加秒 (e.g., "180+2")
+
+Termination: 结束方式 (Normal, Time forfeit, Abandoned)
+
+Moves (走法):
+
+包含标准代数记谱法 (SAN)。
+
+注释 (Comments): 包含在大括号 {} 中，通常包含：
+
+[%eval 0.35]: 引擎评估 (Centipawns)，从白方视角。
+
+[%clk 0:02:55]: 剩余时钟时间。
+
+5. Python 读取代码示例
+
+请使用 python-chess 库进行读取。
+
+场景 A: 读取特定分类的对局 (推荐)
+例如：分析 1600-1800 分段的快棋 (Blitz) 数据
+
+import chess.pgn
+
+# 路径指向处理后的小文件
+pgn_file_path = "dataset/2025-11/Blitz/1600-1799/games.pgn"
+
+with open(pgn_file_path, encoding="utf-8") as f:
+    while True:
+        game = chess.pgn.read_game(f)
+        if game is None:
+            break  # 文件结束
+            
+        # 你的分析代码
+        # print(game.headers["White"], game.headers["Result"])
+        # board = game.board()
+        # for move in game.mainline_moves():
+        #     board.push(move)
+
+场景 B: 从 200GB 原始文件流式读取 (不推荐，除非重新清洗)
+
+
+import chess.pgn
+
+raw_file_path = "dataset/lichess_db_standard_rated_2025-11.pgn"
+
+with open(raw_file_path, encoding="utf-8") as f:
+    # 必须使用循环逐局读取，不可 readlines()
+    while True:
+        game = chess.pgn.read_game(f)
+        if game is None:
+            break
+        # 处理逻辑...
+
+另： 如果要读取大文件，做数据分析，请注意保存当前进度，以便中断后下次可以继续运行。请你详细描述恢复应该做什么。
