@@ -18,8 +18,8 @@ namespace fs = std::filesystem;
 
 // ================= 配置区域 =================
 // const std::string PGN_FILE_PATH = "dataset/lichess_db_standard_rated_2025-11.pgn";
-const std::string PGN_FILE_PATH = "dataset/lichess_db_standard_rated_2025-11.pgn";
-const std::string OUTCOME_DIR = "outcome/chess_killer";
+const std::string PGN_FILE_PATH = "../dataset/lichess_db_standard_rated_2025-11.pgn";
+const std::string OUTCOME_DIR = "../output/chess_killer";
 const std::string CHECKPOINT_FILE = OUTCOME_DIR + "/checkpoint.json";
 const std::string FINAL_RESULT_FILE = OUTCOME_DIR + "/final_matrix_cpp.json";
 
