@@ -9,18 +9,18 @@
 #include <chrono>
 #include <iomanip>
 #include <cmath>
+#include <sstream> // <--- [新增] 引入 stringstream
 
-#include "chess.hpp"
-#include "json.hpp" 
-
+#include "../chess.hpp"
+#include "../json.hpp" 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 // ================= 配置区域 =================
 // const std::string PGN_FILE_PATH = "dataset/lichess_db_standard_rated_2025-11.pgn";
-const std::string PGN_FILE_PATH = "dataset/lichess_db_standard_rated_2025-11.pgn";
-const std::string OUTCOME_DIR = "outcome/chess_killer";
-const std::string CHECKPOINT_FILE = OUTCOME_DIR + "/checkpoint.json";
+const std::string PGN_FILE_PATH = "../dataset/catcatX.pgn";
+const std::string OUTCOME_DIR = "../outcome/chess_killer";
+const std::string CHECKPOINT_FILE = OUTCOME_DIR + "/checkpoint_cpp_test.json";
 const std::string FINAL_RESULT_FILE = OUTCOME_DIR + "/final_matrix_cpp.json";
 
 const int MAX_TURN_INDEX = 75; 
@@ -124,6 +124,9 @@ public:
     std::vector<PendingEvent> current_game_events;
     bool current_game_invalid = false;
 
+    // --- [新增] PGN 录制缓存 ---
+    std::stringstream current_pgn_ss; 
+
     int games_processed_count = 0;
     int target_skip_count = 0;
     std::chrono::steady_clock::time_point start_time;
@@ -135,7 +138,11 @@ public:
     }
 
     void startPgn() override {
-        // 断点续传逻辑：如果未达到目标局数，跳过解析
+        // --- [新增] 重置 PGN 缓存 ---
+        current_pgn_ss.str(""); 
+        current_pgn_ss.clear();
+
+        // 断点续传逻辑
         if (games_processed_count < target_skip_count) {
             skipPgn(true); 
             return;
@@ -147,28 +154,74 @@ public:
         current_game_invalid = false;
     }
 
-    void header(std::string_view key, std::string_view value) override {}
-    void startMoves() override {}
+    void header(std::string_view key, std::string_view value) override {
+        // --- [新增] 录制 Header ---
+        // 只有当我们正在处理（没被跳过）时才录制，节省内存/时间
+        if (games_processed_count >= target_skip_count) {
+            current_pgn_ss << "[" << key << " \"" << value << "\"]\n";
+        }
+    }
+
+    void startMoves() override {
+        if (games_processed_count >= target_skip_count) {
+            current_pgn_ss << "\n"; // Header 和 Moves 之间空一行
+        }
+    }
 
     void move(std::string_view move_str, std::string_view comment) override {
         if (current_game_invalid) return;
 
+        // --- [新增] 录制 Move ---
+        if (games_processed_count >= target_skip_count) {
+            // 简单的格式化：如果是白方，加上回合数 "1. "
+            if (board.sideToMove() == chess::Color::WHITE) {
+                current_pgn_ss << board.fullMoveNumber() << ". " << move_str << " ";
+            } else {
+                current_pgn_ss << move_str << " ";
+            }
+        }
+
         chess::Move move;
         try {
-            // parseSan 可能会抛出异常，必须捕获
+            // parseSan 可能会抛出异常
             move = chess::uci::parseSan(board, move_str); 
-        } catch (...) {
+        } catch (const std::exception& e) {
             current_game_invalid = true;
+            
+            // --- [新增] 触发 Debug 输出 ---
+            print_debug_info(move_str, e.what());
+            
             return; 
         }
-        process_move_logic(move);
+        
+        // 额外的逻辑安全检查：如果 parseSan 通过了，但内部逻辑崩了
+        // 比如 process_move_logic 里如果发现异常也可以手动设置 invalid
+        try {
+             process_move_logic(move);
+        } catch (const std::exception& e) {
+             current_game_invalid = true;
+             print_debug_info(move_str, std::string("Logic Error: ") + e.what());
+        }
+    }
+
+    // --- [新增] 封装打印逻辑 ---
+    void print_debug_info(std::string_view current_move, std::string_view error_msg) {
+        // 使用 cerr 输出错误，以免污染标准输出的数据流
+        std::cerr << "\n========================================\n";
+        std::cerr << "[DEBUG] Invalid Game Detected!\n";
+        std::cerr << "Game Index: " << games_processed_count << "\n";
+        std::cerr << "Error: " << error_msg << "\n";
+        std::cerr << "Problematic Move: " << current_move << "\n";
+        std::cerr << "Board FEN: " << board.getFen() << "\n";
+        std::cerr << "---------------- PGN DUMP ----------------\n";
+        std::cerr << current_pgn_ss.str() << "\n";
+        std::cerr << "========================================\n" << std::endl;
     }
 
     void endPgn() override {
-        // 如果我们处于跳过模式，仅增加计数
+        // ... (保持原有逻辑不变)
         if (games_processed_count < target_skip_count) {
             games_processed_count++;
-            // 每跳过5000局打印一次，避免造成死机假象
             if (games_processed_count % 10000 == 0) {
                  std::cout << "Skipping... " << games_processed_count << " / " << target_skip_count << std::endl;
             }
@@ -179,6 +232,8 @@ public:
             for (const auto& e : current_game_events) {
                 stats.commit_event(e);
             }
+        } else {
+            // 可选：如果不希望刷屏，可以在这里打印 "Game X skipped due to error"
         }
         
         games_processed_count++;
@@ -189,6 +244,7 @@ public:
         }
     }
 
+    // ... (print_progress, save_checkpoint 保持不变) ...
     void print_progress() {
         auto now = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = now - start_time;
@@ -228,15 +284,20 @@ public:
 
 private:
     void process_move_logic(chess::Move move) {
+        // ... (保持原有逻辑不变) ...
         auto from_sq = move.from();
         auto to_sq = move.to();
         
-        // 异常防御：如果Tracker里起始位置是空的，说明前面逻辑可能错了，直接根据Board走棋并返回
+        // 异常防御
         if (!tracker.board_map[from_sq.index()].active) {
+            // 这里虽然目前代码是 return，但如果您认为这属于数据不一致的严重错误
+            // 也可以在这里设置 current_game_invalid = true 并 throw 异常来触发打印
+            // 目前保持原样，只做合法移动
             board.makeMove(move);
             return; 
         }
 
+        // ... (剩余逻辑保持不变) ...
         // 复制攻击者数据 (Value Copy)
         TrackedPiece attacker_data = tracker.board_map[from_sq.index()];
         std::string attacker_id = tracker.get_full_id(attacker_data);
@@ -364,6 +425,9 @@ private:
         }
     }
 };
+
+// ... (main 函数保持不变) ...
+
 
 int main() {
     std::cout<<111111111<<std::endl;

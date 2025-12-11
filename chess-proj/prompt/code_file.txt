@@ -1,0 +1,147 @@
+这是一个为你准备的详细项目说明文档（System Prompt / Context Document）。你可以直接将这段文本发送给下一个 AI 模型，它就能立刻接手项目，理解代码全貌并开始工作。
+
+-----
+
+# Chess Killer 项目开发文档与上下文指南
+
+## 1. 项目概述 (Project Overview)
+
+项目名称：Chess Killer (国际象棋“击杀”分析系统)
+核心目标：通过分析海量国际象棋对局（PGN 数据），统计“谁杀了谁”（Attacker vs Victim）以及“何时发生”（Turn Index）。项目旨在揭示不同棋子的杀伤力、生存率以及在不同回合阶段的活跃度。
+技术栈：
+
+   数据处理核心：C++ (高性能版) / Python (原型版)
+   数据可视化：Python (Jupyter Notebook, Matplotlib/Seaborn)
+   数据交换格式：JSON
+
+## 2. 系统架构与数据流 (Architecture & Data Pipeline)
+
+整个系统分为三个阶段：
+
+1.  解析与统计 (Analyzer)：读取 `.pgn` 文件，模拟棋局，追踪每个棋子的身份（ID），记录“击杀”事件（Capture）和“死亡”时间。
+       实现：`chesskiller.cpp` (生产环境推荐) 或 `chess_killer.ipynb` (原型/调试)。
+2.  数据持久化 (Storage)：将统计结果保存为标准化的 JSON 文件。
+       格式定义：`chess_killer_outcome_description.txt`。
+       输出文件：`final_matrix.json` 或 `checkpoint.json`。
+3.  可视化展示 (Visualizer)：读取 JSON 数据，生成图表（热力图、生存曲线等）。
+       实现：`chess_killer_visualizer.ipynb`。
+
+-----
+
+## 3. 代码文件详解 (Codebase Deep Dive)
+
+### A. `chesskiller.cpp` (C++ 高性能分析核心)
+
+这是项目的主力引擎，用于处理大规模数据集（如 Lichess 数据库）。
+
+   功能：流式读取 PGN 文件，使用 `chess.hpp` 库模拟棋盘，利用 `KillerVisitor` 模式遍历每一局的每一步棋。
+   关键数据结构：
+       `GlobalStats`: 全局统计容器。
+           `kill_matrix`: `unordered_map<AttackerID, unordered_map<VictimID, vector<int>>>`。记录击杀发生的频次和回合分布。
+           `death_timeline`: 记录棋子死亡的回合数（用于生存分析）。
+       `TrackedPiece`: 结构体，用于在棋盘模拟过程中追踪棋子的唯一身份（如 `White_Pawn_a`），防止兵升变或移动后身份丢失。
+   核心逻辑 (KillerVisitor)：
+       追踪机制：维护一个 `board_map`（棋盘映射），记录当前棋盘每个格子上是哪个具体的 `TrackedPiece`。
+       移动处理：
+        1.  移动更新：棋子从 A 移到 B，更新映射。
+        2.  吃子判定 (Capture)：如果目标格子有棋子，触发“击杀”事件，记录到 `kill_matrix`，被吃棋子标记为不活跃。
+        3.  特殊移动：
+               升变 (Promotion)：棋子 ID 后缀增加 `_promoted`（如 `White_Pawn_a_promoted`），状态更新。
+               王车易位 (Castling)：需要同时移动国王和车。
+               吃过路兵 (En Passant)：特殊的吃子逻辑，被吃兵的位置与目标格子不同，需特殊处理。
+       Checkmate 判定：如果游戏以 Checkmate 结束，将输方的 King 视为在当前回合“死亡”。
+   优化技巧：
+       使用 `chess::pgn::StreamParser` 进行流式解析，内存占用低。
+       每处理 N 局（如 10000 局）保存一次 `checkpoint.json`，支持断点续传。
+
+### B. `chess_killer.ipynb` (Python 原型与逻辑验证)
+
+这是 C++ 版本的 Python 前身，逻辑相同但易于调试。
+
+   依赖：`python-chess` 库。
+   核心差异：
+       使用 Python 字典和列表作为主要数据结构。
+       适合快速验证新的统计指标（例如增加“将军次数”统计）后再移植到 C++。
+       包含断点续传逻辑，通过记录文件指针 (`file.tell()`) 实现。
+
+### C. `chess_killer_outcome_description.txt` (数据协议文档)
+
+定义了 Analysis 和 Visualization 之间的接口契约。
+
+   Schema 重点：
+       ID 命名规范：`{Color}_{Role}_{Identity}{_promoted?}`
+           示例：`White_Pawn_a` (白方a兵), `Black_Queen` (黑后), `White_Pawn_e_promoted` (e兵升变后的棋子)。
+       Kill Matrix 结构：是一个 3D 稀疏矩阵的 JSON 表示。
+           `Attacker_ID -> Victim_ID -> [Count_Turn_0, Count_Turn_1, ...]`
+           数组索引 `i` 代表第 `i+1` 回合发生的击杀次数。
+
+### D. `chess_killer_visualizer.ipynb` (可视化分析器)
+
+数据的消费者，负责生成洞察。
+
+   工作流：
+    1.  加载数据：读取 `final_matrix.json`。
+    2.  数据清洗：将原始的“回合数组”聚合为“总击杀数”或“平均击杀时间”。
+    3.  绘图逻辑：
+           Kill Matrix Heatmap：谁最克制谁？（例如：d线兵是否比h线兵杀敌更多？）
+           Survival Curves：棋子随回合数的存活率曲线（利用 `death_timeline` 或反推击杀数据）。
+           Activity Over Time：某个棋子在第几回合杀伤力最强。
+   扩展性：如果要画新图，只需在此文件中增加新的处理函数，无需修改 C++ 代码。
+
+-----
+
+## 4\. 接口与扩展指南 (How to Modify & Extend)
+
+如果你（新的 AI 助手）需要在此基础上工作，请遵循以下指南：
+
+### 场景 1：添加新的统计维度
+
+任务：例如，你想统计“造成将军（Check）的次数”。
+
+1.  修改 `chesskiller.cpp`：
+       在 `GlobalStats` 结构体中增加 `check_counts` 映射。
+       在 `KillerVisitor::sanMove` 函数中，利用 `board.isCheck()` 判断移动后是否将军。
+       如果是，更新 `check_counts`。
+       在 `save_checkpoint` 和 `final_save` 函数中增加对新字段的 JSON 序列化。
+2.  修改可视化：在 `visualizer` notebook 中读取新字段并绘图。
+
+### 场景 2：修改棋子追踪逻辑
+
+任务：例如，你不想区分 a 兵和 b 兵，只想统计“所有的兵”。
+
+1.  策略选择：
+       方法 A (推荐)：不修改 C++。在 Visualizer 阶段（Python）将 `White_Pawn_a`, `White_Pawn_b`... 的数据聚合为 `White_Pawn_All`。这样保留了数据的最大颗粒度。
+       方法 B (性能优先)：修改 C++ `TrackedPiece` 的初始化逻辑，将所有兵的 ID 设为统一值。
+
+### 场景 3：处理更复杂的 PGN 变体
+
+任务：支持 Fischer Random (960) 或其他变体。
+
+1.  修改 `chesskiller.cpp`：检查 `chess.hpp` 是否支持该变体。
+2.  调整初始化：`KillerVisitor` 的棋盘初始化逻辑可能需要适配非标准开局布局。
+
+-----
+
+## 5\. 快速启动命令 (Quick Start)
+
+编译 C++ 分析器:
+
+```bash
+g++ -O3 -std=c++17 chesskiller.cpp -o chesskiller
+```
+
+运行分析:
+
+```bash
+./chesskiller
+# 确保 dataset/ 目录下有 PGN 文件，且 output 目录存在
+```
+
+运行可视化:
+打开 `chess_killer_visualizer.ipynb`，确保文件路径指向生成的 `final_matrix.json`，全部运行即可。
+
+-----
+
+给 AI 的提示 (Prompt for AI):
+
+> "你现在是一个精通 C++ 和 Python 的数据科学工程师。你已经理解了上述的 Chess Killer 项目架构。当前的重点是 [在此处插入你的具体需求，例如：优化 C++ 的哈希表性能 / 在可视化中增加升变棋子的特殊分析 / 修复吃过路兵的 ID 追踪 Bug]。请基于提供的代码上下文进行修改。"

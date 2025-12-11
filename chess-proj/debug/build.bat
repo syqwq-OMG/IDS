@@ -13,11 +13,11 @@ if exist "%cpp_json%" (
 
 :: 4. 编译 C++ 代码
 :: 注意：Windows 下生成的可执行文件通常会自动带上 .exe 后缀
-g++ --std=c++17 ..\chesskiller.cpp -o ..\chesskiller.exe
+g++ --std=c++17 chesskiller_d.cpp -o chesskiller.exe
 
 :: 5. 检查编译是否成功，成功则运行程序
 if %errorlevel% equ 0 (
-    ..\chesskiller.exe
+    chesskiller.exe
 ) else (
     echo Compilation failed.
     pause
