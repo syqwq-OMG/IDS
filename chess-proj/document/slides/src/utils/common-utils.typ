@@ -32,6 +32,7 @@
     font: (
       en-font-sans,
       cn-font-sans,
+      "Noto Sans Symbols 2"
     ),
     // weight: "light",
   )

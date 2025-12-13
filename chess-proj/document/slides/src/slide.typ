@@ -577,6 +577,8 @@
     ]
     #c.body
   ]
+  show figure : set figure.caption(position: bottom)
+
 
   body
 }
