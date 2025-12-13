@@ -1,5 +1,5 @@
 #import "@preview/itemize:0.2.0" as el
-#import "@preview/zebraw:0.5.5": zebraw
+#import "@preview/zebraw:0.6.0": zebraw
 #import emoji: drops, eyes
 
 #let cn-font-serif = "Source Han Serif SC"  // 思源宋体

@@ -5,7 +5,7 @@
 #let project-style(body) = {
 
   show: show-theorion
-  set text(lang: "zh")
+  set text(lang: "en")
   show math.equation.where(block: false): math.display
   set heading(numbering: numbly("{1}.", default: "1.1"))
 

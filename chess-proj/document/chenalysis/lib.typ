@@ -1,6 +1,7 @@
 #import "@preview/gentle-clues:1.2.0": *
 #import "@preview/itemize:0.2.0" as _itemize
 #import "@preview/board-n-pieces:0.7.0": *
+#import "@preview/zebraw:0.6.1":zebraw
 
 #let cn-serif = "Source Han Serif SC"
 #let cn-sans = "Source Han Sans SC"
@@ -22,11 +23,12 @@
   set page(numbering: "1")
   set par(first-line-indent: (all: true, amount: 2em), justify: true)
   // show figure: set block(breakable: true)
-  set figure(placement: auto)
+  // set figure(placement: auto)
 
   show: _itemize.default-list
   show: _itemize.default-enum-list
   set enum(numbering: "(1)")
+  show : zebraw.with(background-color: luma(247)) 
 
   show "。": ". "
   show link: set text(fill: rgb("#0e6388"))

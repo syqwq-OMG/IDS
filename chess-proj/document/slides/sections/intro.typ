@@ -1,13 +1,19 @@
 #import "../lib.typ": *
 
-= Chess 介绍
+= Chess Introduction
 
-== Chess 基本布局
-#slide(align: center + horizon, composer: (1fr, 2fr))[
-  #figure(caption: [基本布局])[#blue-board(starting-position)]
+== Chess Board
+#slide(align: horizon, composer: (1fr, 1fr))[
+  #figure(caption: [Basic Layout])[#blue-board(starting-position)]
+][
+  - $8 times 8$ squares
+
+  - Ranks (rows) numbered $1$ to $8$
+  - Files (columns) lettered a to h 
+  - Initial Position
 ]
 
-== Chess 基本走法
+== Chess Basic Moves
 #slide(align: center + horizon, composer: (1fr, 1fr))[
   #figure(caption: [#chess-sym.pawn.black Pawn])[
     #blue-board(
@@ -99,3 +105,18 @@
 )<tbl:material-points>
 
 Piece values exist because calculating to checkmate in most positions is beyond even top computers. Thus, players aim primarily to create a material advantage, which is helpful to quantitatively *approximate the strength of an army of pieces*.#footnote[Chess piece relative value: https://en.wikipedia.org/wiki/Chess_piece_relative_value]
+
+== Portable Game Notation (PGN)
+*Portable Game Notation (PGN)* is a standard plain text format for recording chess games (both the moves and related data), which can be read by humans and is also supported by most chess software.#footnote[Portable Game Notation: https://en.wikipedia.org/wiki/Portable_Game_Notation]
+
+```pgn
+[Event "rated rapid game"]
+[Result "1-0"]
+[WhiteElo "1025"]
+[BlackElo "1079"]
+[Variant "Standard"]
+[TimeControl "900+10"]
+[Opening "Four Knights Game: Italian Variation"]
+
+1. e4 e5 2. Bc4 Nc6 3. Nf3 Nf6 4. Nc3 d5 5. exd5 Nd4 6. Nxe5 Bg4 1-0
+```

@@ -7,7 +7,7 @@
     date: datetime.today().display(),
     institution: [ECNU Department of Data Science and Big Data Technology],
     title: [CHEnalySiS],
-    subtitle: [国际象棋数据分析],
+    subtitle: [Chess Data Analysis],
   ),
   config-common(
     slide-level: 2,
