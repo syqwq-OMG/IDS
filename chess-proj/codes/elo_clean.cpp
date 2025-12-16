@@ -13,9 +13,10 @@
 namespace fs = std::filesystem;
 
 // ================= 配置区域 =================
-const std::string PGN_FILE_PATH = "../dataset/lichess_db_standard_rated_2025-11.pgn";
+// const std::string PGN_FILE_PATH = "../dataset/lichess_db_standard_rated_2025-11.pgn";
+const std::string PGN_FILE_PATH = "../dataset/lichess_db_standard_rated_2014-01.pgn";
 // const std::string PGN_FILE_PATH = "../dataset/lichess_db_standard_rated_2017-02.pgn";
-const std::string OUT_DIR = "../output/chess_transformer";
+const std::string OUT_DIR = "../output/chess_transformer4";
 // 标记为 strict，表示最严格的清洗模式
 const std::string OUTPUT_FILE = OUT_DIR + "/dataset_seq_strict.csv";
 

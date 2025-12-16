@@ -1,4 +1,5 @@
 dataset/lichess_db_standard_rated_2017-02.pgn
 dataset/lichess_db_standard_rated_2025-11.pgn
+dataset/lichess_db_standard_rated_2014-01.pgn
 *.exe
 **/dataset_seq_strict.csv
