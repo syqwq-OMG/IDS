@@ -34,6 +34,8 @@
   show link: set text(fill: rgb("#0e6388"))
   show ref: set text(fill: rgb("#0e6388"))
 
+  show raw:set text(font: ("Consolas Nerd Font", "Source Han Sans SC"))
+
   align(center)[
     #text(size: 17pt, title)
     #v(1pt)

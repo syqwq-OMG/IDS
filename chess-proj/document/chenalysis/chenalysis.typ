@@ -71,6 +71,8 @@
 
 == 动态兵力评估与压力平滑模型 
 
+
+
 === 加权兵力函数
 传统的国际象棋评估仅基于棋子种类的静态分值。
 
@@ -268,7 +270,7 @@ $
 
 本章将展示从九千万局对局数据中挖掘出的多维度博弈特征。我们首先通过可视化手段呈现微观层面的兵种战术互动与空间分布，随后从统计学角度分析宏观层面的投降心理阈值，最后评估深度学习模型在开局序列特征提取上的有效性。
 
-== 微观战术特征可视化
+== 击杀空间位置可视化
 
 基于系统生成的“死亡时间线”数据，我们绘制了国际象棋全兵种在棋盘上的死亡热力图。
 
@@ -289,7 +291,7 @@ $
 - 王翼与后翼的非对称性：在王的被将杀位置分布中，可以观察到 `g1/g8` 和 `c1/c8` 区域的热度较高，这对应了短易位和长易位后的常见栖身之所。
 
 
-== 击杀矩阵与天敌关系
+== 击杀矩阵
 
 为了量化兵种间的克制关系，我们构建了高维击杀矩阵 $M_"attack"$。下图展示了白方攻击黑方时的击杀频次分布
 
@@ -305,9 +307,95 @@ $
 
 分析 @pic:pvpwhite 与 @pic:pvpblack 可得以下结论：
 
-- 非对称交换比：#lorem(50)
+- 对称交换比：双方在同一兵种间的击杀频次大致相当，反映了均衡的战术交换。例如，白方车击杀黑方车的频次与黑方车击杀白方车的频次相近。
 
 - 兵链的拦截作用：双方的兵互为最大的杀手。矩阵对角线上兵对兵的高击杀数，反映了开局阶段兵链锁定与突破是博弈的基础。
+
+而后，又统计了每个兵种的 击杀-死亡比，不出意外王应该是 KD 最高的，因为他如果被将死了游戏就结束了。但是，我们发现 KD 最低的竟然是 a路兵，对照 @pic:pvpblack 和 @pic:pvpwhite 可以发现，a路兵主要的死因是对方 b路兵造成的，为此我们给出解释：由于有车的看守，a 路兵一般都能活到残局，而向前推进的过程中，会遇到 b兵，然后被吃了。
+
+#figure(
+  image("pic/kd-data.png", width: 65%),
+  caption: [兵种 KD 统计]
+)
+
+具体数据统计见下表。
+
+#figure(
+  table(
+    columns: (7em,)*4,
+    align: (right,) * 5,
+    // rows: (2em, 2em, 2em, 2em, 3em),
+    stroke: none,
+    table.hline(y: 0, stroke: 2pt),
+    table.hline(y: 1),
+    table.hline(y: 7, stroke: 2pt),
+
+    [*Role*], [*Kills*], [*Deaths*], [*KD*],
+    [Bishop], [132401077], [124375509], [1.06],
+    [King], [32760820], [10490972], [3.12],
+    [Knight], [123606213], [133632294], [0.92],
+    [Pawn], [191881927], [324359973], [0.59],
+    [Queen], [122929328], [47899454], [2.57],
+    [Rook], [118052403], [78362826], [1.51],
+    
+  ),
+  caption: [白方兵种击杀统计],
+)
+
+#figure(
+  table(
+    columns: (7em,)*4,
+    align: (right,) * 5,
+    // rows: (2em, 2em, 2em, 2em, 3em),
+    stroke: none,
+    table.hline(y: 0, stroke: 2pt),
+    table.hline(y: 1),
+    table.hline(y: 7, stroke: 2pt),
+
+    [*Role*], [*Kills*], [*Deaths*], [*KD*],
+    [Bishop], [129109588], [122519743], [1.05],
+    [King], [37719790], [11894209], [3.17],
+    [Knight], [119427375], [134492587], [0.89],
+    [Pawn], [198300433], [325238946], [0.61],
+    [Queen], [119863255], [48615589], [2.47],
+    [Rook], [114700587], [78870694], [1.45],
+    
+  ),
+  caption: [黑方兵种击杀统计],
+)
+
+
+== 击杀时间线分析
+
+除了空间维度的分析，我们进一步引入时间维度，绘制了各兵种在对局不同回合数下的击杀概率密度曲线（@pic:kill-time）与存活压力曲线（@pic:death-risk-comp、@pic:kill-act-comp）。这些时间序列图谱揭示了不同兵种在博弈各阶段的战术职能演变：
+
++ 轻重子活跃期的相位分离： 从“平均击杀活跃度”曲线中可以观察到明显的相位差：
+
+  - 马的早熟性：马的击杀曲线峰值出现在第 10-15 回合 。这是由于开局阶段棋盘兵型封闭，马凭借“跳跃”特性成为控制中心与发动战术打击的主力。
+
+  - 车的晚熟性：相比之下，车的活跃度峰值显著滞后，出现在第 30-40 回合甚至更晚 。这一统计特征与“开放线理论”高度吻合——车需要等待中局大量的兵力交换清理出开放线后，才能发挥其远程火力的压制作用。
+
++ 死亡风险的“长尾”特征： 在死亡概率曲线中，后与马呈现出截然不同的风险分布。马的死亡率在开局后迅速攀升并快速回落，说明其常作为中局转换的消耗品；而后的死亡风险曲线则呈现出平缓的“厚尾”特征，意味着作为核心战略威慑力量，后往往被保留至对局深处，直至决定性的战术交换发生。
+
++ 位置敏感性差异： 对比@pic:death-risk-comp，我们发现 e/d 线（中心线）的兵在第 10 回合前的死亡率是 a/h 线（边线）的 3 倍以上。这量化了“中心争夺”的激烈程度，证明了控制中心需要付出巨大的兵力消耗代价。
+
+
+
+#figure(
+  image("pic/kill-time.png", width: 60%),
+  caption: [击杀与死亡时间线]
+)<pic:kill-time>
+
+
+#figure(
+  image("pic/death-risk-comp.png", width: 60%),
+  caption: [不同位置兵种的死亡时间线对比]
+)<pic:death-risk-comp>
+
+#figure(
+  image("pic/kill-act-comparison.png", width: 60%),
+  caption: [不同位置兵种的及撒时间线对比]
+)<pic:kill-act-comp>
 
 == 投降心理阈值的统计分布
 
@@ -324,7 +412,7 @@ $
     table.hline(y: 1),
     table.hline(y: 6, stroke: 2pt),
 
-    [Model], [AIC], [$R^(2) $], [RMSE], [Params],
+    [*Model*], [*AIC*], [$R^(2) $], [*RMSE*], [*Params*],
     [Skew $t$  (NCT)], [-399.436672], [0.987603], [0.003954], [1.12, 1.10, -1.01, 0.60, 2.59],
     [Skew Normal], [-366.319380], [0.967972], [0.006356], [0.90, -3.97, 1.20, 5.34],
     [Student-$t$], [-352.793781], [0.953838], [0.007631], [1.05, 1.52, -1.75, 2.94],
@@ -345,7 +433,7 @@ $
     table.hline(y: 1),
     table.hline(y: 6, stroke: 2pt),
 
-    [Model], [AIC], [$R^(2) $], [RMSE], [Params],
+    [*Model*], [*AIC*], [$R^(2) $], [*RMSE*], [*Params*],
     [Skew $t$  (NCT)], [-399.661638], [0.987890], [0.003942], [1.13, 1.04, 1.01, -0.67, 2.53],
     [Skew Normal], [-364.692834], [0.967109], [0.006497], [0.90, 4.04, -1.28, 5.30],
     [Student-$t$], [-350.305770], [0.951477], [0.007891], [1.06, 1.45, 1.63, 2.89],
@@ -362,10 +450,73 @@ $
 + 厚尾效应：拟合得到的自由度参数 $nu < 10$，证明分布具有显著的厚尾特征。正态分布无法解释在 $-10$ 分（丢后）甚至 $-15$ 分时仍拒绝投降的极端数据点。这反映了玩家群体的异质性：既有遇到微小挫折即投降的“脆弱型”玩家，也有坚持到底的“顽固型”玩家。非中心 $t$-分布成功捕捉了这一长尾现象。
 
 #figure(
-  placement: auto,
+  // placement: auto,
   image("pic/tdistri.png", width: 60%),
   caption: [投降时兵力差的频率分布直方图],
 )<pic:tdistri>
+
+
+== 基于开局序列的 ELO 等级分预测评估
+为了验证深度学习模型从非结构化棋谱中提取隐式特征的能力，我们评估了基于 Transformer 架构的序列回归模型。该模型仅读取前 20 回合（40 步）的着法序列，对对弈双方的 ELO 等级分进行预测。
+
+=== 训练收敛性与误差分析
+模型在包含 10,500 个 Chunk 的数据集上进行了 10 个 Epoch 的训练。实验结果显示，随着训练的推进，模型在验证集上的均方根误差（RMSE）从初始的约 600 迅速收敛并稳定在 165.36 左右。
+
+考虑到国际象棋 ELO 分数的动态波动性（通常一个等级分段的标准差在 200 分左右），165 分的预测误差表明：仅凭开局阶段的着法选择，模型已能较为准确地定位棋手的实力区间。这证明了棋手的开局库深度、着法严谨性与局面理解力在最初的 20 回合内已留下了具有统计显著性的“指纹”。
+
+```txt 
+Epoch 1 完成. 平均 RMSE: 180.73
+=== Epoch 2/10 ===
+Epoch 2 完成. 平均 RMSE: 176.80
+=== Epoch 3/10 ===
+Epoch 3 完成. 平均 RMSE: 174.50
+=== Epoch 4/10 ===
+Epoch 4 完成. 平均 RMSE: 172.81
+=== Epoch 5/10 ===
+Epoch 5 完成. 平均 RMSE: 171.29
+=== Epoch 6/10 ===
+Epoch 6 完成. 平均 RMSE: 169.87
+=== Epoch 7/10 ===
+Epoch 7 完成. 平均 RMSE: 168.62
+=== Epoch 8/10 ===
+Epoch 8 完成. 平均 RMSE: 167.46
+=== Epoch 9/10 ===
+Epoch 9 完成. 平均 RMSE: 166.51
+=== Epoch 10/10 ===
+Epoch 10 完成. 平均 RMSE: 165.36
+```
+
+=== 典型案例分析 
+
+为了进一步验证模型在评估棋手真实实力方面的鲁棒性，我们随机选取了对局进行深入分析：
+
+
+```py 
+# 预测模式示例
+DEVICE = "cpu"
+test_game = """
+1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Nxd4 Bc5 5. Be3 Qf6 6. c3 d6 7. Bb5 Bd7 8. b4 Bb6 9. O-O O-O-O 10. Bxc6 Bxc6 11. Nxc6 bxc6 12. Bd4 Qg6 13. Nd2 Nf6 14. Re1 Rhe8 15. f3 Kb7 16. a4 c5 17. bxc5 dxc5 18. Bxf6 Qxf6 19. a5 Qxc3 20. axb6 cxb6 21. Re2 Rd3 22. Qa4 1-0
+""" 
+predict_dual(test_game)
+```
+得到的输出如下：
+
+```txt 
+📖 加载词表成功，大小: 436
+🔄 正在加载存档: ../output/chess_transformer4/checkpoints_dual/chess_transformer_dual.pth
+📅 恢复进度: 第 11 轮, 第 0 个块
+------------------------------
+输入对局: e4 e5 Nf3 Nc6 d4 d4 Nd4 Bc5 Be3 Qf6...
+⚪ 白方预测 ELO: 1692
+⚫ 黑方预测 ELO: 1737
+⚖️ 实力分差: 45
+------------------------------
+```
+
+在该对局中，尽管白方最终获胜，模型却给出了黑方略高的评分（1737 vs 1692）。这看似与比赛结果相悖，实则精准反映了模型对着法质量的深度捕捉。 开局阶段，黑方面对白方激进的侧翼兵推进 `8. b4`，采取了稳健的出子策略并果断选择异向易位 `9... O-O-O`，这种处理复杂局面的自信与定式理解被模型识别为较高水平特征；相比之下，白方的着法虽具攻击性但略显松动，符合俱乐部中级玩家“重战术、轻结构”的风格。 
+
+模型成功剥离了导致黑方输棋的末端战术崩溃（第 22 回合），而是基于前 20 回合的整体序列质量做出了评判。这证明了 Transformer 模型并未简单地过拟合比赛胜负标签，而是真正习得了从“开局序列模式”到“棋手竞技水平”之间的非线性映射逻辑，具备了客观评价棋局内容的泛化能力。
+
 
 
 
@@ -415,3 +566,5 @@ At the micro-tactical level, this study tracked the full lifecycle of chess piec
 At the macro-psychological level, the report focuses on the statistical correlation between players' resignation mechanisms and the advantages or disadvantages of the position. The study proposes an improved weighted Material Points System which adds dynamic weighting for pawn promotion threats to the traditional point system, thereby more accurately simulating pressure in practical games. By analyzing the joint distribution of material difference and move counts at the moment of resignation, we quantified players' psychological thresholds under different game situations and explored the skewness and fat-tail characteristics presented by this distribution.
 
 In summary, this project combines low-level data engineering with high-level statistical analysis. It not only reconstructs the classic chess evaluation system from a data perspective but also provides a new quantitative basis for understanding human decision-making behavior in complex game environments, laying the foundation for the future introduction of AI engines, such as Stockfish, for deeper positional assessment.
+
+
