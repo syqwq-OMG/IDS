@@ -340,6 +340,7 @@ $
     
   ),
   caption: [白方兵种击杀统计],
+  numbering: none
 )
 
 #figure(
