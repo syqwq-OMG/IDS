@@ -339,8 +339,7 @@ $
     [Rook], [118052403], [78362826], [1.51],
     
   ),
-  caption: [白方兵种击杀统计],
-  numbering: none
+  caption: [白方兵种击杀统计]
 )
 
 #figure(
